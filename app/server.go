@@ -20,7 +20,7 @@ var (
 )
 
 func main() {
-	directory := flag.String("--directory", "", "Pass the directory to mount")
+	directory := flag.String("directory", "", "Pass the directory to mount")
 	flag.Parse()
 
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
