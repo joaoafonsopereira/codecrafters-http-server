@@ -28,11 +28,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	conn, err := l.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
+
+		go handleConnection(conn)
 	}
+
+}
+
+func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	data, err := readAllData(conn)
@@ -44,9 +52,9 @@ func main() {
 	requestLine, headers, _ := parseHttpRequest(data)
 	_, path, _ := parseRequestLine(requestLine)
 
-	// routing / handlers
 	response := &Response{}
 
+	// routing / handlers
 	if bytes.Equal(path, []byte("/")) {
 		response = response.withStatusLine(status200)
 	} else if bytes.HasPrefix(path, []byte("/echo/")) {
