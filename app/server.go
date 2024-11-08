@@ -13,8 +13,8 @@ var _ = net.Listen
 var _ = os.Exit
 
 var (
-	status200 = []byte("HTTP/1.1 200 OK\r\n\r\n")
-	status404 = []byte("HTTP/1.1 404 Not Found\r\n\r\n")
+	status200 = []byte("HTTP/1.1 200 OK")
+	status404 = []byte("HTTP/1.1 404 Not Found")
 )
 
 func main() {
@@ -80,7 +80,9 @@ type Response struct {
 func (r *Response) serialize() []byte {
 	res := new(bytes.Buffer)
 	res.Write(r.statusLine)
+	res.Write([]byte("\r\n"))
 	res.Write(r.headers)
+	res.Write([]byte("\r\n"))
 	res.Write(r.body)
 	return res.Bytes()
 }
