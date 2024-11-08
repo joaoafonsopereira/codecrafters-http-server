@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports above (feel free to remove this!)
@@ -16,6 +15,7 @@ var _ = os.Exit
 
 var (
 	status200 = []byte("HTTP/1.1 200 OK")
+	status201 = []byte("HTTP/1.1 201 Created")
 	status404 = []byte("HTTP/1.1 404 Not Found")
 )
 
@@ -50,8 +50,8 @@ func handleConnection(conn net.Conn, directory string) {
 		os.Exit(1)
 	}
 
-	requestLine, headers, _ := parseHttpRequest(data)
-	_, path, _ := parseRequestLine(requestLine)
+	requestLine, headers, body := parseHttpRequest(data)
+	method, path, _ := parseRequestLine(requestLine)
 
 	response := &Response{}
 
@@ -71,20 +71,10 @@ func handleConnection(conn net.Conn, directory string) {
 			withStatusLine(status200).
 			withTextBody(userAgent)
 	} else if bytes.HasPrefix(path, []byte("/files/")) {
-		filename, _ := bytes.CutPrefix(path, []byte("/files/"))
-		file := filepath.Join(directory, string(filename))
-
-		content, err := os.ReadFile(file)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				fmt.Println("Error opening file: ", err.Error())
-				os.Exit(1)
-			}
-			response = response.withStatusLine(status404)
-		} else {
-			response = response.
-				withStatusLine(status200).
-				withBinaryBody(content)
+		if bytes.Equal(method, []byte("GET")) {
+			response = downloadHandler(path, directory)
+		} else if bytes.Equal(method, []byte("POST")) {
+			response = uploadHandler(path, body, directory)
 		}
 
 	} else {
