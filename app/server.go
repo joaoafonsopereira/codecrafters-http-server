@@ -41,27 +41,28 @@ func main() {
 		os.Exit(1)
 	}
 
-	requestLine, _, _ := parseHttpRequest(data)
+	requestLine, headers, _ := parseHttpRequest(data)
 	_, path, _ := parseRequestLine(requestLine)
 
 	// routing / handlers
-	var response Response
+	response := &Response{}
 
 	if bytes.Equal(path, []byte("/")) {
-		response.statusLine = status200
-	} else if bytes.HasPrefix(path, []byte("/echo")) {
-		//str, hasPrefix := bytes.CutPrefix(path, []byte("/echo/")) //todo handle wrong prefix case
+		response = response.withStatusLine(status200)
+	} else if bytes.HasPrefix(path, []byte("/echo/")) {
 		str, _ := bytes.CutPrefix(path, []byte("/echo/"))
-		headers := new(bytes.Buffer)
-		headers.WriteString("Content-Type: text/plain\r\n")
-		headers.WriteString(
-			fmt.Sprintf("Content-Length: %d\r\n", len(str)),
-		)
-		response.statusLine = status200
-		response.headers = headers.Bytes()
-		response.body = str
+
+		response = response.
+			withStatusLine(status200).
+			withTextBody(str)
+
+	} else if bytes.Equal(path, []byte("/user-agent")) {
+		userAgent, _ := headerValue(headers, []byte("User-Agent")) // todo assumes header is always present
+		response = response.
+			withStatusLine(status200).
+			withTextBody(userAgent)
 	} else {
-		response.statusLine = status404
+		response = response.withStatusLine(status404)
 	}
 
 	_, err = conn.Write(response.serialize())
@@ -71,10 +72,42 @@ func main() {
 	}
 }
 
+func headerValue(headers []byte, header []byte) (value []byte, found bool) {
+	headerStart := bytes.Index(headers, header)
+	if headerStart == -1 {
+		return nil, false
+	}
+	valueStart := headerStart + len(header) + 2 // 2 accounts for ": "
+	valueEnd := valueStart + bytes.Index(headers[valueStart:], []byte("\r\n"))
+	return headers[valueStart:valueEnd], true
+}
+
 type Response struct {
 	statusLine []byte
 	headers    []byte
 	body       []byte
+}
+
+func (r *Response) withStatusLine(statusLine []byte) *Response {
+	r.statusLine = statusLine
+	return r
+}
+
+func (r *Response) withHeader(header []byte) *Response {
+	r.headers = append(r.headers, header...)
+	return r
+}
+
+func (r *Response) withBody(body []byte) *Response {
+	r.body = body
+	return r
+}
+
+func (r *Response) withTextBody(body []byte) *Response {
+	return r.
+		withHeader([]byte("Content-Type: text/plain\r\n")).
+		withHeader([]byte(fmt.Sprintf("Content-Length: %d\r\n", len(body)))).
+		withBody(body)
 }
 
 func (r *Response) serialize() []byte {
@@ -109,14 +142,14 @@ func readAllData(conn net.Conn) ([]byte, error) {
 	return outBuffer.Bytes(), nil
 }
 
-func parseHttpRequest(data []byte) ([]byte, []byte, []byte) {
+func parseHttpRequest(data []byte) (requestLine, headers, body []byte) {
 	endOfReqLine := bytes.Index(data, []byte("\r\n")) + 1     // idx of \n
 	endOfHeaders := bytes.LastIndex(data, []byte("\r\n")) + 1 // idx of \n
 
-	requestLine := data[:endOfReqLine+1] // todo include \r\n on line or not?
-	headers := data[endOfReqLine+1 : endOfHeaders+1]
-	body := data[endOfHeaders+1:]
-	return requestLine, headers, body
+	requestLine = data[:endOfReqLine+1] // todo include \r\n on line or not?
+	headers = data[endOfReqLine+1 : endOfHeaders+1]
+	body = data[endOfHeaders+1:]
+	return
 }
 
 func parseRequestLine(line []byte) (method, path, version []byte) {
