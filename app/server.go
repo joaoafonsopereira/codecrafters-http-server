@@ -12,6 +12,11 @@ import (
 var _ = net.Listen
 var _ = os.Exit
 
+var (
+	status200 = []byte("HTTP/1.1 200 OK\r\n\r\n")
+	status404 = []byte("HTTP/1.1 404 Not Found\r\n\r\n")
+)
+
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
@@ -40,19 +45,44 @@ func main() {
 	_, path, _ := parseRequestLine(requestLine)
 
 	// routing / handlers
-	var response []byte
+	var response Response
+
 	if bytes.Equal(path, []byte("/")) {
-		response = []byte("HTTP/1.1 200 OK\r\n\r\n")
+		response.statusLine = status200
+	} else if bytes.HasPrefix(path, []byte("/echo")) {
+		//str, hasPrefix := bytes.CutPrefix(path, []byte("/echo/")) //todo handle wrong prefix case
+		str, _ := bytes.CutPrefix(path, []byte("/echo/"))
+		headers := new(bytes.Buffer)
+		headers.WriteString("Content-Type: text/plain\r\n")
+		headers.WriteString(
+			fmt.Sprintf("Content-Length: %d\r\n", len(str)),
+		)
+		response.statusLine = status200
+		response.headers = headers.Bytes()
+		response.body = str
 	} else {
-		response = []byte("HTTP/1.1 404 Not Found\r\n\r\n")
+		response.statusLine = status404
 	}
 
-	_, err = conn.Write(response)
+	_, err = conn.Write(response.serialize())
 	if err != nil {
 		fmt.Println("Error writing answer: ", err.Error())
 		os.Exit(1)
 	}
+}
 
+type Response struct {
+	statusLine []byte
+	headers    []byte
+	body       []byte
+}
+
+func (r *Response) serialize() []byte {
+	res := new(bytes.Buffer)
+	res.Write(r.statusLine)
+	res.Write(r.headers)
+	res.Write(r.body)
+	return res.Bytes()
 }
 
 func readAllData(conn net.Conn) ([]byte, error) {
