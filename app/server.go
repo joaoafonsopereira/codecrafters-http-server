@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports above (feel free to remove this!)
@@ -18,10 +20,9 @@ var (
 )
 
 func main() {
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-	fmt.Println("Logs from your program will appear here!")
+	directory := flag.String("--directory", "", "Pass the directory to mount")
+	flag.Parse()
 
-	//Uncomment this block to pass the first stage
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
@@ -35,12 +36,12 @@ func main() {
 			os.Exit(1)
 		}
 
-		go handleConnection(conn)
+		go handleConnection(conn, *directory)
 	}
 
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, directory string) {
 	defer conn.Close()
 
 	data, err := readAllData(conn)
@@ -69,6 +70,23 @@ func handleConnection(conn net.Conn) {
 		response = response.
 			withStatusLine(status200).
 			withTextBody(userAgent)
+	} else if bytes.HasPrefix(path, []byte("/files/")) {
+		filename, _ := bytes.CutPrefix(path, []byte("/files/"))
+		file := filepath.Join(directory, string(filename))
+
+		content, err := os.ReadFile(file)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				fmt.Println("Error opening file: ", err.Error())
+				os.Exit(1)
+			}
+			response = response.withStatusLine(status404)
+		} else {
+			response = response.
+				withStatusLine(status200).
+				withBinaryBody(content)
+		}
+
 	} else {
 		response = response.withStatusLine(status404)
 	}
@@ -114,6 +132,13 @@ func (r *Response) withBody(body []byte) *Response {
 func (r *Response) withTextBody(body []byte) *Response {
 	return r.
 		withHeader([]byte("Content-Type: text/plain\r\n")).
+		withHeader([]byte(fmt.Sprintf("Content-Length: %d\r\n", len(body)))).
+		withBody(body)
+}
+
+func (r *Response) withBinaryBody(body []byte) *Response {
+	return r.
+		withHeader([]byte("Content-Type: application/octet-stream\r\n")).
 		withHeader([]byte(fmt.Sprintf("Content-Length: %d\r\n", len(body)))).
 		withBody(body)
 }
