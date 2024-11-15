@@ -14,18 +14,14 @@ var (
 type HandlerFunc func(*Request) *Response
 
 type Router struct {
-	tree RouteTrieNode
+	tree *RouteTrieNode
 	//routes         map[string]*Route
 	//hasVarSubRoute bool
 	//varSubRoute    *Route
 }
 
 func NewRouter() *Router {
-	tree := RouteTrieNode{
-		subRoutes:            make(map[string]*Route),
-		hasPathParamSubRoute: false,
-		pathParamSubRoute:    nil,
-	}
+	tree := NewRouteTrieNode()
 	r := &Router{
 		tree,
 	}
@@ -117,7 +113,9 @@ func (r *Router) findRoute(pathSegments []string) (route *Route, remainingSegmen
 }
 
 func buildSubRoute(method string, pathSegments []string, pathParams []string, handler HandlerFunc) *Route {
-	route := &Route{}
+	route := &Route{
+		tree: NewRouteTrieNode(),
+	}
 	if isPathParam(pathSegments[0]) {
 		pathParams = append(pathParams, extractPathParam(pathSegments[0]))
 	}
@@ -190,7 +188,7 @@ func (r *Router) match(req *Request) (*Route, map[string]string) {
 	return route, context
 }
 
-func dfs(root RouteTrieNode, pathSegments []string) (*Route, []string) {
+func dfs(root *RouteTrieNode, pathSegments []string) (*Route, []string) {
 	// todo there is no need for dfs if we only have 1 node per path param!!!
 
 	if len(pathSegments) == 0 {
@@ -225,7 +223,7 @@ func dfs(root RouteTrieNode, pathSegments []string) (*Route, []string) {
 }
 
 type Route struct {
-	tree RouteTrieNode
+	tree *RouteTrieNode
 
 	isVar bool
 
@@ -244,4 +242,12 @@ type RouteTrieNode struct {
 	pathParamSubRoute    *Route
 
 	isLeafNode bool
+}
+
+func NewRouteTrieNode() *RouteTrieNode {
+	return &RouteTrieNode{
+		subRoutes:            make(map[string]*Route),
+		hasPathParamSubRoute: false,
+		pathParamSubRoute:    nil,
+	}
 }
