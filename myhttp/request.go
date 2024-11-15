@@ -13,6 +13,8 @@ type Request struct {
 	Method        string
 	Path          string
 	methodAndPath string
+
+	PathVariables map[string]string
 }
 
 func parseHttpRequest(data []byte) *Request {
