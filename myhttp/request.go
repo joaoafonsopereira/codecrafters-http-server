@@ -7,7 +7,7 @@ import (
 
 type Request struct {
 	requestLine []byte
-	Headers     []byte
+	Headers     Headers
 	Body        []byte
 
 	Method        string
@@ -24,7 +24,8 @@ func parseHttpRequest(data []byte) *Request {
 	res := &Request{}
 
 	res.requestLine = data[:endOfReqLine+1] // todo include \r\n on line or not?
-	res.Headers = data[endOfReqLine+1 : endOfHeaders+1]
+	headersData := data[endOfReqLine+1 : endOfHeaders+1]
+	res.Headers = parseHeaders(headersData)
 	res.Body = data[endOfHeaders+1:]
 
 	method, path, _ := parseRequestLine(res.requestLine)

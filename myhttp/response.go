@@ -2,12 +2,12 @@ package myhttp
 
 import (
 	"bytes"
-	"fmt"
+	"strconv"
 )
 
 type Response struct {
 	statusLine []byte
-	headers    []byte
+	Headers    Headers
 	body       []byte
 }
 
@@ -20,8 +20,8 @@ func (r *Response) WithStatusLine(statusLine []byte) *Response {
 	return r
 }
 
-func (r *Response) WithHeader(header []byte) *Response {
-	r.headers = append(r.headers, header...)
+func (r *Response) WithHeader(header, value string) *Response {
+	r.Headers[header] = value
 	return r
 }
 
@@ -32,15 +32,15 @@ func (r *Response) WithBody(body []byte) *Response {
 
 func (r *Response) WithTextBody(body []byte) *Response {
 	return r.
-		WithHeader([]byte("Content-Type: text/plain\r\n")).
-		WithHeader([]byte(fmt.Sprintf("Content-Length: %d\r\n", len(body)))).
+		WithHeader("Content-Type", "text/plain").
+		WithHeader("Content-Length", strconv.Itoa(len(body))).
 		WithBody(body)
 }
 
 func (r *Response) WithBinaryBody(body []byte) *Response {
 	return r.
-		WithHeader([]byte("Content-Type: application/octet-stream\r\n")).
-		WithHeader([]byte(fmt.Sprintf("Content-Length: %d\r\n", len(body)))).
+		WithHeader("Content-Type", "application/octet-stream").
+		WithHeader("Content-Length", strconv.Itoa(len(body))).
 		WithBody(body)
 }
 
@@ -48,7 +48,7 @@ func (r *Response) serialize() []byte {
 	res := new(bytes.Buffer)
 	res.Write(r.statusLine)
 	res.Write([]byte("\r\n"))
-	res.Write(r.headers)
+	res.Write(serializeHeaders(r.Headers))
 	res.Write([]byte("\r\n"))
 	res.Write(r.body)
 	return res.Bytes()

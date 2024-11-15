@@ -6,7 +6,12 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 )
+
+var supportedCompressionSchemes = map[string]bool{
+	"gzip": true,
+}
 
 func ListenAndServe(network string, addr string, router *Router) error {
 	l, err := net.Listen(network, addr)
@@ -39,6 +44,14 @@ func handleConnection(conn net.Conn, router *Router) {
 
 	response := router.handleRequest(request)
 
+	encodingOptions, wantsEncoding := request.Headers["Accept-Encoding"]
+	if wantsEncoding {
+		scheme := chooseEncoding(encodingOptions)
+		if scheme != "" {
+			response.Headers["Content-Encoding"] = scheme
+		}
+	}
+
 	_, err = conn.Write(response.serialize())
 	if err != nil {
 		fmt.Println("Error writing answer: ", err.Error())
@@ -66,4 +79,14 @@ func readAllData(conn net.Conn) ([]byte, error) {
 		}
 	}
 	return outBuffer.Bytes(), nil
+}
+
+func chooseEncoding(options string) string {
+	opts := strings.Split(options, ",")
+	for _, opt := range opts {
+		if supportedCompressionSchemes[opt] {
+			return opt
+		}
+	}
+	return ""
 }
