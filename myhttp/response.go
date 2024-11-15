@@ -12,7 +12,9 @@ type Response struct {
 }
 
 func NewResponse() *Response {
-	return &Response{}
+	return &Response{
+		Headers: make(Headers),
+	}
 }
 
 func (r *Response) WithStatusLine(statusLine []byte) *Response {

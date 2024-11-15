@@ -24,7 +24,7 @@ func parseHttpRequest(data []byte) *Request {
 	res := &Request{}
 
 	res.requestLine = data[:endOfReqLine+1] // todo include \r\n on line or not?
-	headersData := data[endOfReqLine+1 : endOfHeaders+1]
+	headersData := data[endOfReqLine+1 : endOfHeaders-1]
 	res.Headers = parseHeaders(headersData)
 	res.Body = data[endOfHeaders+1:]
 

@@ -10,6 +10,7 @@ type Headers map[string]string
 func parseHeaders(data []byte) Headers {
 	res := make(Headers)
 	lines := bytes.Split(data, []byte("\r\n"))
+	lines = lines[:len(lines)-1] // remove empty string created "after" last \r\n
 	for _, line := range lines {
 		colonIdx := bytes.IndexByte(line, ':')
 		headerName := string(line[:colonIdx])
