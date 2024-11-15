@@ -185,6 +185,10 @@ func (r *Router) match(req *Request) (*Route, map[string]string) {
 
 	pathSegments := strings.Split(req.Path, "/")[1:] // first segment is always "" and doesn't matter
 	route, pathArgs := dfs(r.tree, pathSegments)
+	if route == nil {
+		return nil, nil
+	}
+
 	for i, param := range route.pathParams {
 		context[param] = pathArgs[i]
 	}
