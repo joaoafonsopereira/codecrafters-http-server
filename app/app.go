@@ -39,12 +39,12 @@ func main() {
 			WithTextBody([]byte(userAgent))
 	})
 
-	router.RegisterHandler("GET /files/", func(req *myhttp.Request) *myhttp.Response {
-		return downloadHandler([]byte(req.Path), *directory)
+	router.RegisterHandler("GET /files/{file}", func(req *myhttp.Request) *myhttp.Response {
+		return downloadHandler(req, *directory)
 	})
 
-	router.RegisterHandler("POST /files/", func(req *myhttp.Request) *myhttp.Response {
-		return uploadHandler([]byte(req.Path), req.Body, *directory)
+	router.RegisterHandler("POST /files/{file}", func(req *myhttp.Request) *myhttp.Response {
+		return uploadHandler(req, *directory)
 	})
 
 	err := myhttp.ListenAndServe("tcp", "0.0.0.0:4221", router)
@@ -66,11 +66,11 @@ func headerValue(headers []byte, header []byte) (value []byte, found bool) {
 	return headers[valueStart:valueEnd], true
 }
 
-func downloadHandler(path []byte, directory string) *myhttp.Response {
+func downloadHandler(req *myhttp.Request, directory string) *myhttp.Response {
 	response := myhttp.NewResponse()
 
-	filename, _ := bytes.CutPrefix(path, []byte("/files/"))
-	file := filepath.Join(directory, string(filename))
+	filename := req.PathVariables["file"]
+	file := filepath.Join(directory, filename)
 
 	content, err := os.ReadFile(file)
 	if err != nil {
@@ -86,13 +86,13 @@ func downloadHandler(path []byte, directory string) *myhttp.Response {
 		WithBinaryBody(content)
 }
 
-func uploadHandler(path, body []byte, directory string) *myhttp.Response {
+func uploadHandler(req *myhttp.Request, directory string) *myhttp.Response {
 	response := myhttp.NewResponse()
 
-	filename, _ := bytes.CutPrefix(path, []byte("/files/"))
+	filename := req.PathVariables["file"]
 	file := filepath.Join(directory, string(filename))
 
-	err := os.WriteFile(file, body, 0644)
+	err := os.WriteFile(file, req.Body, 0644)
 	if err != nil {
 		fmt.Println("Error writing file: ", err.Error())
 		os.Exit(1)
