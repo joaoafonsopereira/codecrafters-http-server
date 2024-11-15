@@ -33,10 +33,10 @@ func main() {
 	})
 
 	router.RegisterHandler("/user-agent", func(req *myhttp.Request) *myhttp.Response {
-		userAgent, _ := headerValue(req.Headers, []byte("User-Agent")) // todo assumes header is always present
+		userAgent, _ := req.Headers["User-Agent"] // todo assumes header is always present
 		return myhttp.NewResponse().
 			WithStatusLine(myhttp.Status200).
-			WithTextBody(userAgent)
+			WithTextBody([]byte(userAgent))
 	})
 
 	router.RegisterHandler("GET /files/", func(req *myhttp.Request) *myhttp.Response {
