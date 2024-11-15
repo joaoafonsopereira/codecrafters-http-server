@@ -50,7 +50,7 @@ func (r *Router) RegisterHandler(pattern string, handler HandlerFunc) {
 	}
 
 	route := r.buildRoute(method, pathSegments, handler)
-	if route.isVar2 {
+	if route.isVar {
 		r.tree.hasPathParamSubRoute = true
 		r.tree.pathParamSubRoute = route
 	} else {
@@ -72,7 +72,7 @@ func (r *Router) buildRoute(method string, pathSegments []string, handler Handle
 	}
 
 	subRoute := buildSubRoute(method, remainingParts, pathParams, handler)
-	if subRoute.isVar2 {
+	if subRoute.isVar {
 		baseRoute.tree.hasPathParamSubRoute = true
 		baseRoute.tree.pathParamSubRoute = subRoute
 	} else {
@@ -227,7 +227,7 @@ func dfs(root RouteTrieNode, pathSegments []string) (*Route, []string) {
 type Route struct {
 	tree RouteTrieNode
 
-	isVar2 bool // todo rename
+	isVar bool
 
 	hasCatchallHandler bool
 	hasMethodHandlers  bool
