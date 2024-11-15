@@ -14,7 +14,7 @@ func parseHeaders(data []byte) Headers {
 	for _, line := range lines {
 		colonIdx := bytes.IndexByte(line, ':')
 		headerName := string(line[:colonIdx])
-		headerValue := string(line[colonIdx+1:])
+		headerValue := string(line[colonIdx+2:])
 		res[headerName] = headerValue
 	}
 	return res
