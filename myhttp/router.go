@@ -81,7 +81,7 @@ func (r *Router) buildRoute(method string, pathSegments []string, handler Handle
 // finds the longest existing route matching the path. If the path
 // doesn't get matched in full, returns the remaining not-matched parts
 func (r *Router) findRoute(pathSegments []string) (route *Route, remainingSegments []string, pathParams []string) {
-	pathParams = make([]string, len(pathSegments))
+	pathParams = make([]string, 0, len(pathSegments))
 
 	matchedRoute, exactMatch := r.tree.subRoutes[pathSegments[0]]
 	if !exactMatch {
@@ -113,18 +113,22 @@ func (r *Router) findRoute(pathSegments []string) (route *Route, remainingSegmen
 }
 
 func buildSubRoute(method string, pathSegments []string, pathParams []string, handler HandlerFunc) *Route {
-	route := &Route{
-		tree: NewRouteTrieNode(),
-	}
+	route := NewRoute()
 	if isPathParam(pathSegments[0]) {
 		pathParams = append(pathParams, extractPathParam(pathSegments[0]))
+		route.isVar = true
 	}
 
 	if len(pathSegments) == 1 {
 		setFinalRoute(route, method, pathParams, handler)
 	} else {
 		subRoute := buildSubRoute(method, pathSegments[1:], pathParams, handler)
-		route.tree.subRoutes[pathSegments[1]] = subRoute
+		if subRoute.isVar {
+			route.tree.hasPathParamSubRoute = true
+			route.tree.pathParamSubRoute = subRoute
+		} else {
+			route.tree.subRoutes[pathSegments[1]] = subRoute
+		}
 	}
 
 	return route
@@ -179,7 +183,7 @@ func (r *Router) handleRequest(req *Request) *Response {
 func (r *Router) match(req *Request) (*Route, map[string]string) {
 	context := make(map[string]string)
 
-	pathSegments := strings.Split(req.Path, "/")
+	pathSegments := strings.Split(req.Path, "/")[1:] // first segment is always "" and doesn't matter
 	route, pathArgs := dfs(r.tree, pathSegments)
 	for i, param := range route.pathParams {
 		context[param] = pathArgs[i]
@@ -233,6 +237,13 @@ type Route struct {
 	methodHandlers     map[string]HandlerFunc
 
 	pathParams []string
+}
+
+func NewRoute() *Route {
+	return &Route{
+		tree:           NewRouteTrieNode(),
+		methodHandlers: make(map[string]HandlerFunc),
+	}
 }
 
 type RouteTrieNode struct {
