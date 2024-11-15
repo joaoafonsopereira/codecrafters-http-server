@@ -100,7 +100,7 @@ func (r *Router) findRoute(pathSegments []string) (route *Route, remainingSegmen
 		subRoute, exactMatch := matchedRoute.tree.subRoutes[pathSegments[i]]
 		if !exactMatch {
 			if isPathParam(pathSegments[i]) && matchedRoute.tree.hasPathParamSubRoute {
-				subRoute = r.tree.pathParamSubRoute
+				subRoute = matchedRoute.tree.pathParamSubRoute
 				pathParams = append(pathParams, extractPathParam(pathSegments[i]))
 			} else {
 				return matchedRoute, pathSegments[i:], pathParams
