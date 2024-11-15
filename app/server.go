@@ -24,12 +24,12 @@ func main() {
 		return myhttp.NewResponse().WithStatusLine(myhttp.Status200)
 	})
 
-	router.RegisterHandler("/echo", func(req *myhttp.Request) *myhttp.Response {
-		str, _ := bytes.CutPrefix([]byte(req.Path), []byte("/echo/"))
+	router.RegisterHandler("/echo/{str}", func(req *myhttp.Request) *myhttp.Response {
+		str := req.PathVariables["str"]
 
 		return myhttp.NewResponse().
 			WithStatusLine(myhttp.Status200).
-			WithTextBody(str)
+			WithTextBody([]byte(str)) // todo maybe api could use strings instead of []byte ?
 	})
 
 	router.RegisterHandler("/user-agent", func(req *myhttp.Request) *myhttp.Response {
