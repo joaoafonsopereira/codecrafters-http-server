@@ -27,14 +27,16 @@ func main() {
 		str := req.PathVariables["str"]
 
 		rw.WriteStatusLine(myhttp.Status200)
-		rw.WriteTextBody([]byte(str)) // todo maybe api could use strings instead of []byte ?
+		rw.Header().Set("Content-Type", "text/plain")
+		rw.Write([]byte(str)) // todo maybe api could use strings instead of []byte ?
 	})
 
 	router.RegisterHandler("/user-agent", func(rw myhttp.ResponseWriter, req *myhttp.Request) {
 		userAgent, _ := req.Headers["User-Agent"] // todo assumes header is always present
 
 		rw.WriteStatusLine(myhttp.Status200)
-		rw.WriteTextBody([]byte(userAgent))
+		rw.Header().Set("Content-Type", "text/plain")
+		rw.Write([]byte(userAgent))
 	})
 
 	router.RegisterHandler("GET /files/{file}", func(rw myhttp.ResponseWriter, req *myhttp.Request) {
@@ -68,7 +70,8 @@ func downloadHandler(rw myhttp.ResponseWriter, req *myhttp.Request, directory st
 	}
 
 	rw.WriteStatusLine(myhttp.Status200)
-	rw.WriteBinaryBody(content)
+	rw.Header().Set("Content-Type", "application/octet-stream")
+	rw.Write(content)
 }
 
 func uploadHandler(rw myhttp.ResponseWriter, req *myhttp.Request, directory string) {
