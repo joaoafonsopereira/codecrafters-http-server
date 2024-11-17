@@ -41,18 +41,18 @@ func handleConnection(conn net.Conn, router *Router) {
 	}
 
 	request := parseHttpRequest(data)
+	responseWriter := chooseResponseWriter(request.Headers)
 
-	response := router.handleRequest(request)
+	handler, context := router.match(request)
+	request.PathVariables = context // todo would it make sense to just to this inside router.match?
 
-	encodingOptions, wantsEncoding := request.Headers["Accept-Encoding"]
-	if wantsEncoding {
-		scheme := chooseEncoding(encodingOptions)
-		if scheme != "" {
-			response.Headers["Content-Encoding"] = scheme
-		}
+	if handler == nil {
+		responseWriter.WriteStatusLine(Status404)
+	} else {
+		handler(responseWriter, request)
 	}
 
-	_, err = conn.Write(response.serialize())
+	_, err = conn.Write(responseWriter.serialize())
 	if err != nil {
 		fmt.Println("Error writing answer: ", err.Error())
 		os.Exit(1)
@@ -79,6 +79,17 @@ func readAllData(conn net.Conn) ([]byte, error) {
 		}
 	}
 	return outBuffer.Bytes(), nil
+}
+
+func chooseResponseWriter(headers Headers) ResponseWriter {
+	encodingOptions, wantsEncoding := headers["Accept-Encoding"]
+	if wantsEncoding {
+		scheme := chooseEncoding(encodingOptions)
+		if scheme != "" {
+			return NewEncodedResponse(scheme)
+		}
+	}
+	return NewResponse()
 }
 
 func chooseEncoding(options string) string {

@@ -11,7 +11,7 @@ var (
 	Status404 = []byte("HTTP/1.1 404 Not Found")
 )
 
-type HandlerFunc func(*Request) *Response
+type HandlerFunc func(ResponseWriter, *Request) *Response
 
 type Router struct {
 	tree *RouteTrieNode
@@ -158,16 +158,17 @@ func extractPathParam(pathPart string) string {
 	return pathPart[1 : len(pathPart)-1]
 }
 
-// func (r *Router) handleRequest(w http.ResponseWriter, req Request) Response { todo
-func (r *Router) handleRequest(req *Request) *Response {
-	route, context := r.match(req)
+func (r *Router) match(req *Request) (HandlerFunc, map[string]string) {
+	pathSegments := strings.Split(req.Path, "/")[1:] // first segment is always "" and doesn't matter
+	route, pathArgs := dfs(r.tree, pathSegments)
 	if route == nil {
-		return NewResponse().WithStatusLine(Status404)
+		return nil, nil
 	}
-	req.PathVariables = context
-
 	if !route.tree.isLeafNode {
 		panic("Route isn't leaf node!!") // todo avoid this
+	}
+	if !route.hasCatchallHandler && !route.hasMethodHandlers {
+		panic("Route has no corresponding handler!!")
 	}
 
 	var handler HandlerFunc
@@ -177,23 +178,12 @@ func (r *Router) handleRequest(req *Request) *Response {
 		handler = route.catchallHandler
 	}
 
-	return handler(req)
-}
-
-func (r *Router) match(req *Request) (*Route, map[string]string) {
 	context := make(map[string]string)
-
-	pathSegments := strings.Split(req.Path, "/")[1:] // first segment is always "" and doesn't matter
-	route, pathArgs := dfs(r.tree, pathSegments)
-	if route == nil {
-		return nil, nil
-	}
-
 	for i, param := range route.pathParams {
 		context[param] = pathArgs[i]
 	}
 
-	return route, context
+	return handler, context
 }
 
 func dfs(root *RouteTrieNode, pathSegments []string) (*Route, []string) {
