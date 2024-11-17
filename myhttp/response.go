@@ -41,16 +41,6 @@ func (r *Response) Write(body []byte) (int, error) {
 	return len(body), nil
 }
 
-func (r *Response) WriteTextBody(body []byte) (int, error) {
-	r.Headers.Set("Content-Type", "text/plain")
-	return r.Write(body)
-}
-
-func (r *Response) WriteBinaryBody(body []byte) (int, error) {
-	r.Headers.Set("Content-Type", "application/octet-stream")
-	return r.Write(body)
-}
-
 func (r *Response) serialize() []byte {
 	res := new(bytes.Buffer)
 	res.Write(r.statusLine)
@@ -86,7 +76,7 @@ func (r *EncodedResponse) Write(data []byte) (int, error) {
 		panic("Unknown compression scheme: " + r.compressionScheme)
 	}
 
-	n, err := zw.Write(data)
+	_, err := zw.Write(data)
 	if err != nil {
 		return 0, err
 	}
@@ -94,6 +84,7 @@ func (r *EncodedResponse) Write(data []byte) (int, error) {
 		panic(err)
 	}
 
-	r.Headers.Set("Content-Length", strconv.Itoa(n))
-	return n, nil
+	r.body = buf.Bytes()
+	r.Headers.Set("Content-Length", strconv.Itoa(len(r.body)))
+	return len(r.body), nil
 }
