@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"github.com/codecrafters-io/http-server-starter-go/myhttp"
@@ -20,31 +19,30 @@ func main() {
 
 	router := myhttp.NewRouter()
 
-	router.RegisterHandler("/", func(_ *myhttp.Request) *myhttp.Response {
-		return myhttp.NewResponse().WithStatusLine(myhttp.Status200)
+	router.RegisterHandler("/", func(rw myhttp.ResponseWriter, _ *myhttp.Request) {
+		rw.WriteStatusLine(myhttp.Status200)
 	})
 
-	router.RegisterHandler("/echo/{str}", func(req *myhttp.Request) *myhttp.Response {
+	router.RegisterHandler("/echo/{str}", func(rw myhttp.ResponseWriter, req *myhttp.Request) {
 		str := req.PathVariables["str"]
 
-		return myhttp.NewResponse().
-			WithStatusLine(myhttp.Status200).
-			WithTextBody([]byte(str)) // todo maybe api could use strings instead of []byte ?
+		rw.WriteStatusLine(myhttp.Status200)
+		rw.WriteTextBody([]byte(str)) // todo maybe api could use strings instead of []byte ?
 	})
 
-	router.RegisterHandler("/user-agent", func(req *myhttp.Request) *myhttp.Response {
+	router.RegisterHandler("/user-agent", func(rw myhttp.ResponseWriter, req *myhttp.Request) {
 		userAgent, _ := req.Headers["User-Agent"] // todo assumes header is always present
-		return myhttp.NewResponse().
-			WithStatusLine(myhttp.Status200).
-			WithTextBody([]byte(userAgent))
+
+		rw.WriteStatusLine(myhttp.Status200)
+		rw.WriteTextBody([]byte(userAgent))
 	})
 
-	router.RegisterHandler("GET /files/{file}", func(req *myhttp.Request) *myhttp.Response {
-		return downloadHandler(req, *directory)
+	router.RegisterHandler("GET /files/{file}", func(rw myhttp.ResponseWriter, req *myhttp.Request) {
+		downloadHandler(rw, req, *directory)
 	})
 
-	router.RegisterHandler("POST /files/{file}", func(req *myhttp.Request) *myhttp.Response {
-		return uploadHandler(req, *directory)
+	router.RegisterHandler("POST /files/{file}", func(rw myhttp.ResponseWriter, req *myhttp.Request) {
+		uploadHandler(rw, req, *directory)
 	})
 
 	err := myhttp.ListenAndServe("tcp", "0.0.0.0:4221", router)
@@ -55,20 +53,7 @@ func main() {
 
 }
 
-// todo this should go to myhttp package
-func headerValue(headers []byte, header []byte) (value []byte, found bool) {
-	headerStart := bytes.Index(headers, header)
-	if headerStart == -1 {
-		return nil, false
-	}
-	valueStart := headerStart + len(header) + 2 // 2 accounts for ": "
-	valueEnd := valueStart + bytes.Index(headers[valueStart:], []byte("\r\n"))
-	return headers[valueStart:valueEnd], true
-}
-
-func downloadHandler(req *myhttp.Request, directory string) *myhttp.Response {
-	response := myhttp.NewResponse()
-
+func downloadHandler(rw myhttp.ResponseWriter, req *myhttp.Request, directory string) {
 	filename := req.PathVariables["file"]
 	file := filepath.Join(directory, filename)
 
@@ -78,19 +63,17 @@ func downloadHandler(req *myhttp.Request, directory string) *myhttp.Response {
 			fmt.Println("Error opening file: ", err.Error())
 			os.Exit(1)
 		}
-		return response.WithStatusLine(myhttp.Status404)
+		rw.WriteStatusLine(myhttp.Status404)
+		return
 	}
 
-	return response.
-		WithStatusLine(myhttp.Status200).
-		WithBinaryBody(content)
+	rw.WriteStatusLine(myhttp.Status200)
+	rw.WriteBinaryBody(content)
 }
 
-func uploadHandler(req *myhttp.Request, directory string) *myhttp.Response {
-	response := myhttp.NewResponse()
-
+func uploadHandler(rw myhttp.ResponseWriter, req *myhttp.Request, directory string) {
 	filename := req.PathVariables["file"]
-	file := filepath.Join(directory, string(filename))
+	file := filepath.Join(directory, filename)
 
 	err := os.WriteFile(file, req.Body, 0644)
 	if err != nil {
@@ -98,6 +81,5 @@ func uploadHandler(req *myhttp.Request, directory string) *myhttp.Response {
 		os.Exit(1)
 	}
 
-	return response.
-		WithStatusLine(myhttp.Status201)
+	rw.WriteStatusLine(myhttp.Status201)
 }

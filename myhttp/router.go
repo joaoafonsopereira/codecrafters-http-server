@@ -11,7 +11,7 @@ var (
 	Status404 = []byte("HTTP/1.1 404 Not Found")
 )
 
-type HandlerFunc func(ResponseWriter, *Request) *Response
+type HandlerFunc func(ResponseWriter, *Request)
 
 type Router struct {
 	tree *RouteTrieNode

@@ -12,6 +12,10 @@ type ResponseWriter interface {
 	Write([]byte) (int, error)
 	WriteStatusLine(statusLine []byte)
 
+	/* convenience methods to maintain "backwards compatibility" */
+	WriteBinaryBody([]byte) (int, error)
+	WriteTextBody([]byte) (int, error)
+
 	serialize() []byte
 }
 
