@@ -84,7 +84,7 @@ func readAllData(conn net.Conn) ([]byte, error) {
 func chooseEncoding(options string) string {
 	opts := strings.Split(options, ",")
 	for _, opt := range opts {
-		if supportedCompressionSchemes[opt] {
+		if supportedCompressionSchemes[strings.TrimSpace(opt)] {
 			return opt
 		}
 	}
