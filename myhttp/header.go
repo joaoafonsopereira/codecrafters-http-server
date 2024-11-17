@@ -7,6 +7,14 @@ import (
 
 type Headers map[string]string
 
+func (h Headers) Get(key string) string {
+	return h[key]
+}
+
+func (h Headers) Set(key, value string) {
+	h[key] = value
+}
+
 func parseHeaders(data []byte) Headers {
 	res := make(Headers)
 	lines := bytes.Split(data, []byte("\r\n"))
