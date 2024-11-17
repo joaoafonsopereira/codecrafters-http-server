@@ -95,7 +95,8 @@ func chooseResponseWriter(headers Headers) ResponseWriter {
 func chooseEncoding(options string) string {
 	opts := strings.Split(options, ",")
 	for _, opt := range opts {
-		if supportedCompressionSchemes[strings.TrimSpace(opt)] {
+		opt = strings.TrimSpace(opt)
+		if supportedCompressionSchemes[opt] {
 			return opt
 		}
 	}
