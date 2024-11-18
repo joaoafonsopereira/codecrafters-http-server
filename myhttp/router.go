@@ -9,17 +9,47 @@ type HandlerFunc func(ResponseWriter, *Request)
 
 type Router struct {
 	tree *RouteTrieNode
-	//routes         map[string]*Route
-	//hasVarSubRoute bool
-	//varSubRoute    *Route
 }
 
 func NewRouter() *Router {
-	tree := NewRouteTrieNode()
-	r := &Router{
-		tree,
+	return &Router{
+		NewRouteTrieNode(),
 	}
-	return r
+}
+
+type RouteTrieNode struct {
+	subRoutes map[string]*Route
+
+	hasPathParamSubRoute bool
+	pathParamSubRoute    *Route
+	isLeafNode           bool
+}
+
+func NewRouteTrieNode() *RouteTrieNode {
+	return &RouteTrieNode{
+		subRoutes:            make(map[string]*Route),
+		hasPathParamSubRoute: false,
+		pathParamSubRoute:    nil,
+	}
+}
+
+type Route struct {
+	tree *RouteTrieNode
+
+	isVar      bool
+	pathParams []string
+
+	hasCatchallHandler bool
+	hasMethodHandlers  bool
+	catchallHandler    HandlerFunc
+	methodHandlers     map[string]HandlerFunc
+}
+
+func NewRoute() *Route {
+	return &Route{
+		tree:           NewRouteTrieNode(),
+		methodHandlers: make(map[string]HandlerFunc),
+	}
 }
 
 func (r *Router) RegisterHandler(pattern string, handler HandlerFunc) {
@@ -40,13 +70,7 @@ func (r *Router) RegisterHandler(pattern string, handler HandlerFunc) {
 	}
 
 	route := r.buildRoute(method, pathSegments, handler)
-	if route.isVar {
-		r.tree.hasPathParamSubRoute = true
-		r.tree.pathParamSubRoute = route
-	} else {
-		r.tree.subRoutes[pathSegments[0]] = route
-	}
-
+	addSubRoute(r.tree, route, pathSegments[0])
 }
 
 func (r *Router) buildRoute(method string, pathSegments []string, handler HandlerFunc) *Route {
@@ -62,14 +86,18 @@ func (r *Router) buildRoute(method string, pathSegments []string, handler Handle
 	}
 
 	subRoute := buildSubRoute(method, remainingParts, pathParams, handler)
-	if subRoute.isVar {
-		baseRoute.tree.hasPathParamSubRoute = true
-		baseRoute.tree.pathParamSubRoute = subRoute
-	} else {
-		baseRoute.tree.subRoutes[remainingParts[0]] = subRoute
-	}
+	addSubRoute(baseRoute.tree, subRoute, remainingParts[0])
 
 	return baseRoute
+}
+
+func addSubRoute(root *RouteTrieNode, subRoute *Route, subRouteFirstSegment string) {
+	if subRoute.isVar {
+		root.hasPathParamSubRoute = true
+		root.pathParamSubRoute = subRoute
+	} else {
+		root.subRoutes[subRouteFirstSegment] = subRoute
+	}
 }
 
 // finds the longest existing route matching the path. If the path
@@ -117,19 +145,13 @@ func buildSubRoute(method string, pathSegments []string, pathParams []string, ha
 		setFinalRoute(route, method, pathParams, handler)
 	} else {
 		subRoute := buildSubRoute(method, pathSegments[1:], pathParams, handler)
-		if subRoute.isVar {
-			route.tree.hasPathParamSubRoute = true
-			route.tree.pathParamSubRoute = subRoute
-		} else {
-			route.tree.subRoutes[pathSegments[1]] = subRoute
-		}
+		addSubRoute(route.tree, subRoute, pathSegments[1])
 	}
 
 	return route
 }
 
 func setFinalRoute(routeWriter *Route, method string, pathParams []string, handler HandlerFunc) {
-	//res := &Route{hasCatchallHandler: true}
 	routeWriter.pathParams = pathParams
 	routeWriter.tree.isLeafNode = true
 
@@ -137,11 +159,9 @@ func setFinalRoute(routeWriter *Route, method string, pathParams []string, handl
 		routeWriter.hasCatchallHandler = true
 		routeWriter.catchallHandler = handler
 	} else {
-		//routeWriter.catchallHandler = nil todo do we want to remove the catchall catchallHandler?
 		routeWriter.hasMethodHandlers = true
 		routeWriter.methodHandlers[method] = handler
 	}
-	//return res
 }
 
 func isPathParam(pathPart string) bool {
@@ -154,7 +174,7 @@ func extractPathParam(pathPart string) string {
 
 func (r *Router) match(req *Request) (HandlerFunc, map[string]string) {
 	pathSegments := strings.Split(req.Path, "/")[1:] // first segment is always "" and doesn't matter
-	route, pathArgs := dfs(r.tree, pathSegments)
+	route, pathArgs := matchPathRec(r.tree, pathSegments)
 	if route == nil {
 		return nil, nil
 	}
@@ -172,6 +192,9 @@ func (r *Router) match(req *Request) (HandlerFunc, map[string]string) {
 		handler = route.catchallHandler
 	}
 
+	if len(pathArgs) != len(route.pathParams) {
+		panic("Discovered path arguments are different than declared path parameters!")
+	}
 	context := make(map[string]string)
 	for i, param := range route.pathParams {
 		context[param] = pathArgs[i]
@@ -180,9 +203,7 @@ func (r *Router) match(req *Request) (HandlerFunc, map[string]string) {
 	return handler, context
 }
 
-func dfs(root *RouteTrieNode, pathSegments []string) (*Route, []string) {
-	// todo there is no need for dfs if we only have 1 node per path param!!!
-
+func matchPathRec(root *RouteTrieNode, pathSegments []string) (*Route, []string) {
 	if len(pathSegments) == 0 {
 		return nil, nil
 	}
@@ -202,51 +223,14 @@ func dfs(root *RouteTrieNode, pathSegments []string) (*Route, []string) {
 	}
 
 	if subRoute, exactMatch := root.subRoutes[pathSegments[0]]; exactMatch {
-		return dfs(subRoute.tree, pathSegments[1:])
+		return matchPathRec(subRoute.tree, pathSegments[1:])
 	}
 
 	if root.hasPathParamSubRoute {
-		matchedSubRoute, vars := dfs(root.pathParamSubRoute.tree, pathSegments[1:])
+		matchedSubRoute, vars := matchPathRec(root.pathParamSubRoute.tree, pathSegments[1:])
 		vars = slices.Insert(vars, 0, pathSegments[0])
 		return matchedSubRoute, vars
 	}
 
 	return nil, nil
-}
-
-type Route struct {
-	tree *RouteTrieNode
-
-	isVar bool
-
-	hasCatchallHandler bool
-	hasMethodHandlers  bool
-	catchallHandler    HandlerFunc
-	methodHandlers     map[string]HandlerFunc
-
-	pathParams []string
-}
-
-func NewRoute() *Route {
-	return &Route{
-		tree:           NewRouteTrieNode(),
-		methodHandlers: make(map[string]HandlerFunc),
-	}
-}
-
-type RouteTrieNode struct {
-	subRoutes map[string]*Route
-
-	hasPathParamSubRoute bool
-	pathParamSubRoute    *Route
-
-	isLeafNode bool
-}
-
-func NewRouteTrieNode() *RouteTrieNode {
-	return &RouteTrieNode{
-		subRoutes:            make(map[string]*Route),
-		hasPathParamSubRoute: false,
-		pathParamSubRoute:    nil,
-	}
 }
