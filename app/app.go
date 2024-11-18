@@ -4,14 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/codecrafters-io/http-server-starter-go/myhttp"
-	"net"
 	"os"
 	"path/filepath"
 )
-
-// Ensures gofmt doesn't remove the "net" and "os" imports above (feel free to remove this!)
-var _ = net.Listen
-var _ = os.Exit
 
 func main() {
 	directory := flag.String("directory", "", "Pass the directory to mount")
@@ -32,7 +27,7 @@ func main() {
 	})
 
 	router.RegisterHandler("/user-agent", func(rw myhttp.ResponseWriter, req *myhttp.Request) {
-		userAgent, _ := req.Headers["User-Agent"] // todo assumes header is always present
+		userAgent, _ := req.Headers["User-Agent"]
 
 		rw.WriteStatusLine(myhttp.Status200)
 		rw.Header().Set("Content-Type", "text/plain")
