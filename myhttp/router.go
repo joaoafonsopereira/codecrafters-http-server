@@ -5,12 +5,6 @@ import (
 	"strings"
 )
 
-var (
-	Status200 = []byte("HTTP/1.1 200 OK")
-	Status201 = []byte("HTTP/1.1 201 Created")
-	Status404 = []byte("HTTP/1.1 404 Not Found")
-)
-
 type HandlerFunc func(ResponseWriter, *Request)
 
 type Router struct {

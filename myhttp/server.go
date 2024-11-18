@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+var (
+	Status200 = []byte("HTTP/1.1 200 OK")
+	Status201 = []byte("HTTP/1.1 201 Created")
+	Status404 = []byte("HTTP/1.1 404 Not Found")
+)
+
 var supportedCompressionSchemes = map[string]bool{
 	"gzip": true,
 }
@@ -41,7 +47,7 @@ func handleConnection(conn net.Conn, router *Router) {
 	}
 
 	request := parseHttpRequest(data)
-	responseWriter := chooseResponseWriter(request.Headers)
+	responseWriter := selectResponseWriter(request.Headers)
 
 	handler, context := router.match(request)
 	request.PathVariables = context // todo would it make sense to just to this inside router.match?
@@ -81,10 +87,10 @@ func readAllData(conn net.Conn) ([]byte, error) {
 	return outBuffer.Bytes(), nil
 }
 
-func chooseResponseWriter(headers Headers) ResponseWriter {
+func selectResponseWriter(headers Headers) ResponseWriter {
 	encodingOptions, wantsEncoding := headers["Accept-Encoding"]
 	if wantsEncoding {
-		scheme := chooseEncoding(encodingOptions)
+		scheme := selectEncoding(encodingOptions)
 		if scheme != "" {
 			return NewEncodedResponse(scheme)
 		}
@@ -92,7 +98,7 @@ func chooseResponseWriter(headers Headers) ResponseWriter {
 	return NewResponse()
 }
 
-func chooseEncoding(options string) string {
+func selectEncoding(options string) string {
 	opts := strings.Split(options, ",")
 	for _, opt := range opts {
 		opt = strings.TrimSpace(opt)
